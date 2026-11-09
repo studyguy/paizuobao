@@ -1,0 +1,29 @@
+# 运行时数据（分享服务本地存储，含活动/宾客数据）
+data/store.json
+data/*.tmp
+
+# 测试产物
+tests/shot_*
+tests/_patch*.py
+tests/_demo_block.js
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 本地环境
+.env
+.env.local
