@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宴会大屏 · 排座宝</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: radial-gradient(ellipse at 50% 30%, #8a2f1c 0%, #5c1d10 70%, #3d130a 100%);
+    color: #f7ecd2; display: flex; flex-direction: column;
+    cursor: default;
+  }
+  header {
+    text-align: center; padding: 3.2vh 0 1.6vh;
+    font-size: 3.4vh; letter-spacing: 8px; color: #f0d9a0;
+    text-shadow: 0 2px 12px rgba(0,0,0,.5);
+  }
+  header small { display: block; font-size: 1.6vh; letter-spacing: 4px; opacity: .65; margin-top: .8vh; }
+  main { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4vw; padding: 0 4vw; }
+  .tbl {
+    flex: 0 0 auto; width: 30vh; height: 30vh; border-radius: 50%;
+    border: 0.8vh solid #d4a017; background: rgba(255, 246, 220, .07);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    box-shadow: 0 0 60px rgba(212, 160, 23, .25), inset 0 0 40px rgba(212, 160, 23, .12);
+  }
+  .tbl .nm { font-size: 6.2vh; font-weight: bold; color: #ffd76a; }
+  .tbl .ct { font-size: 2vh; opacity: .75; margin-top: 1vh; }
+  .seats {
+    flex: 1; max-width: 62vw; display: grid;
+    grid-template-columns: repeat(2, 1fr); gap: 1.6vh 3vw;
+  }
+  .seat {
+    display: flex; align-items: center; gap: 1.6vh;
+    background: rgba(255, 246, 220, .06); border-radius: 1.6vh;
+    padding: 1.5vh 2vh; font-size: 3vh;
+  }
+  .seat .no {
+    flex: 0 0 4.6vh; height: 4.6vh; border-radius: 50%;
+    display: grid; place-items: center;
+    background: rgba(212, 160, 23, .22); color: #ffd76a;
+    font-size: 2.2vh; font-weight: bold;
+  }
+  .seat.up .no { background: #d4a017; }
+  .seat .addr { font-size: 1.9vh; opacity: .6; margin-left: auto; }
+  footer {
+    display: flex; align-items: center; justify-content: center; gap: 1.4vh;
+    padding: 2vh 0 3vh;
+  }
+  .dot { width: 1.4vh; height: 1.4vh; border-radius: 50%; background: rgba(247, 236, 210, .25); }
+  .dot.on { background: #ffd76a; transform: scale(1.25); }
+  .tip {
+    position: fixed; top: 2vh; right: 2vh; font-size: 1.7vh; opacity: .45;
+  }
+  .tip button {
+    background: rgba(255,255,255,.1); color: #f7ecd2; border: 1px solid rgba(255,255,255,.25);
+    border-radius: 8px; padding: .8vh 1.6vh; font-size: 1.7vh; cursor: pointer; margin-left: .8vh;
+  }
+  .empty { font-size: 3vh; opacity: .7; }
+</style>
+</head>
+<body>
+  <div class="tip">
+    <span id="hint">←/→ 翻页 · 空格暂停</span>
+    <button id="fs">全屏</button>
+    <button id="pause">暂停</button>
+  </div>
+  <header id="evName">宴会座位安排<small>扫码或大屏查找您的桌位</small></header>
+  <main id="stage"><p class="empty">暂无座位数据</p></main>
+  <footer id="dots"></footer>
+
+<script>
+(function () {
+  const q = new URLSearchParams(location.search);
+  const E = q.get('e');
+  const INTERVAL = Math.max(3, parseInt(q.get('t') || '8', 10)) * 1000;
+  let state = null, slides = [], cur = 0, timer = null, paused = false;
+
+  async function fetchState() {
+    if (E) {
+      const res = await fetch('/api/events/' + E);
+      if (!res.ok) throw new Error('活动不存在');
+      const ev = await res.json();
+      return ev.state;
+    }
+    const raw = localStorage.getItem('paizuo_state_v1');
+    return raw ? JSON.parse(raw) : null;
+  }
+
+  function buildSlides(st) {
+    const seats = st.plan && st.plan.seats || {};
+    const tables = st.tables.slice().sort((a, b) => (b.isHead ? 1 : 0) - (a.isHead ? 1 : 0));
+    const out = [];
+    for (const t of tables) {
+      const list = Object.keys(seats)
+        .map(gid => ({ g: st.guests.find(x => x.id === gid), s: seats[gid] }))
+        .filter(x => x.g && x.g.attending !== false && x.s.t === t.id)
+        .sort((a, b) => a.s.s - b.s.s);
+      if (!list.length) continue;
+      out.push({ table: t, list });
+    }
+    return out;
+  }
+
+  const ROLES = {
+    groom: '新郎', bride: '新娘', groomFather: '新郎父亲', groomMother: '新郎母亲',
+    brideFather: '新娘父亲', brideMother: '新娘母亲', grandparent: '祖辈', witness: '证婚人',
+    uncle: '舅父', elder: '长辈', leader: '领导', relative: '亲属', colleague: '同事',
+    classmate: '同学', friend: '朋友', other: '其他', boss: '董事长', seniorExec: '总裁',
+    vipGuest: '嘉宾', exec: '总监', manager: '经理', supervisor: '主管', staff: '员工',
+    plusOne: '家属',
+  };
+
+  function render() {
+    if (!slides.length) {
+      document.getElementById('stage').innerHTML = '<p class="empty">暂无座位数据 —— 请先在主界面完成排座</p>';
+      return;
+    }
+    cur = ((cur % slides.length) + slides.length) % slides.length;
+    const sl = slides[cur];
+    document.getElementById('evName').innerHTML =
+      (state.meta.eventName || '宴会座位安排') +
+      '<small>' + (state.meta.date || '') + (sl.table.isHead ? ' · 主宾桌' : '') + '</small>';
+    document.getElementById('stage').innerHTML =
+      '<div class="tbl"><div class="nm">' + sl.table.name + '</div>' +
+      '<div class="ct">' + sl.list.length + ' / ' + sl.table.capacity + ' 人</div></div>' +
+      '<div class="seats">' + sl.list.map((x, i) =>
+        '<div class="seat' + (x.s.s === 0 ? ' up' : '') + '">' +
+        '<span class="no">' + (x.s.s + 1) + '</span>' +
+        '<span>' + x.g.name + '</span>' +
+        (ROLES[x.g.role] ? '<span class="addr">' + ROLES[x.g.role] + '</span>' : '') +
+        '</div>').join('') + '</div>';
+    document.getElementById('dots').innerHTML = slides.map((_, i) =>
+      '<span class="dot' + (i === cur ? ' on' : '') + '"></span>').join('');
+  }
+
+  function tick() {
+    if (!paused && slides.length) { cur++; render(); }
+  }
+
+  async function boot() {
+    try { state = await fetchState(); } catch (e) {
+      document.getElementById('stage').innerHTML = '<p class="empty">' + e.message + '（分享大屏需运行 serve.py）</p>';
+      return;
+    }
+    if (!state) return;
+    slides = buildSlides(state);
+    render();
+    timer = setInterval(tick, INTERVAL);
+    if (E) setInterval(async () => {           // 分享模式：10s 轮询刷新
+      try {
+        state = await fetchState();
+        slides = buildSlides(state);
+      } catch (e) { /* 静默重试 */ }
+    }, 10000);
+  }
+
+  document.getElementById('fs').addEventListener('click', () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(() => { });
+  });
+  document.getElementById('pause').addEventListener('click', function () {
+    paused = !paused;
+    this.textContent = paused ? '播放' : '暂停';
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') { cur++; render(); }
+    else if (e.key === 'ArrowLeft') { cur--; render(); }
+    else if (e.key === ' ') { e.preventDefault(); document.getElementById('pause').click(); }
+  });
+  // 本地模式：localStorage 变化即刷新
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'paizuo_state_v1' && !E) {
+      try { state = JSON.parse(e.newValue); slides = buildSlides(state); render(); } catch (err) { }
+    }
+  });
+
+  boot();
+})();
+</script>
+</body>
+</html>

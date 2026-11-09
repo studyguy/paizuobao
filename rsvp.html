@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>出席回执 · 排座宝</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: linear-gradient(160deg, #7a2e1d, #a03d26);
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .card {
+    width: min(420px, 94vw);
+    background: #fffdf8; border-radius: 18px;
+    padding: 30px 26px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.35);
+    text-align: center;
+  }
+  .ev { font-size: 13px; color: #8a7a5c; letter-spacing: 2px; }
+  h1 { font-size: 22px; color: #7a2e1d; margin: 8px 0 4px; }
+  .guest { font-size: 30px; font-weight: bold; color: #3a3026; margin: 18px 0 2px; }
+  .sub { font-size: 13px; color: #9a8f77; margin-bottom: 20px; }
+  .btns { display: flex; gap: 10px; margin: 14px 0; }
+  .btns button {
+    flex: 1; padding: 14px 0; font-size: 16px; font-weight: bold;
+    border: 2px solid #c2543a; border-radius: 12px;
+    background: #fff; color: #c2543a; cursor: pointer;
+  }
+  .btns button.on { background: #c2543a; color: #fff; }
+  .btns button.no.on { background: #8a7a5c; border-color: #8a7a5c; }
+  .row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .row input, .row select {
+    flex: 1; padding: 10px; border: 1px solid #e8dfcf; border-radius: 10px; font-size: 14px;
+  }
+  .go {
+    width: 100%; padding: 13px 0; font-size: 16px; font-weight: bold;
+    border: none; border-radius: 12px; background: linear-gradient(135deg, #d4a017, #b8860b);
+    color: #fff; cursor: pointer;
+  }
+  .done { font-size: 15px; color: #15803d; margin-top: 14px; line-height: 1.7; }
+  .list { text-align: left; max-height: 46vh; overflow-y: auto; margin-top: 8px; }
+  .list .li {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px; border-bottom: 1px dashed #e8dfcf; font-size: 14px;
+  }
+  .tag { font-size: 12px; padding: 1px 8px; border-radius: 99px; }
+  .yes { background: #e7f5ec; color: #15803d; }
+  .no { background: #f4ede1; color: #8a7a5c; }
+  .wait { background: #fef3c7; color: #a16207; }
+  .err { color: #c0392b; font-size: 14px; line-height: 1.8; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="ev" id="evName">出席回执</div>
+    <div id="content"><p class="sub">正在加载…</p></div>
+  </div>
+
+<script>
+(function () {
+  const q = new URLSearchParams(location.search);
+  const E = q.get('e'), G = q.get('g');
+  const $ = id => document.getElementById(id);
+  let event = null;
+
+  function fmtStatus(r) {
+    if (!r) return '<span class="tag wait">待回复</span>';
+    return r.status === 'yes'
+      ? '<span class="tag yes">出席' + (r.extra ? ' +' + r.extra : '') + '</span>'
+      : '<span class="tag no">不出席</span>';
+  }
+
+  async function load() {
+    if (!E) {
+      $('evName').textContent = '排座宝 · 出席回执';
+      $('content').innerHTML = '<p class="err">缺少活动参数。<br>请从「分享」面板打开带活动 ID 的回执链接。</p>';
+      return;
+    }
+    try {
+      const res = await fetch('/api/events/' + E);
+      if (!res.ok) throw new Error('活动不存在');
+      event = await res.json();
+      $('evName').textContent = event.name || '出席回执';
+      if (G) renderGuest(); else renderList();
+    } catch (e) {
+      $('content').innerHTML = '<p class="err">加载失败：' + e.message + '<br>请确认已运行 <code>python serve.py</code> 并从分享面板打开链接。</p>';
+    }
+  }
+
+  function renderGuest() {
+    const g = (event.state && event.state.guests || []).find(x => x.id === G);
+    if (!g) { $('content').innerHTML = '<p class="err">宾客不存在</p>'; return; }
+    const r = event.rsvps[G];
+    $('content').innerHTML =
+      '<div class="guest">' + g.name + '</div>' +
+      '<div class="sub">敬请您光临，请回执是否出席</div>' +
+      '<div class="btns">' +
+        '<button id="bYes" class="' + (r && r.status === 'yes' ? 'on' : '') + '">出席</button>' +
+        '<button id="bNo" class="no ' + (r && r.status === 'no' ? 'on' : '') + '">不出席</button>' +
+      '</div>' +
+      '<div class="row"><input id="extra" type="number" min="0" max="9" value="' + (r && r.extra || 0) + '" title="随行人数"> <span style="line-height:38px;font-size:13px;color:#9a8f77">位随行</span></div>' +
+      '<div class="row"><input id="note" placeholder="给新人的留言（可选）" value="' + (r && r.note || '') + '"></div>' +
+      '<button class="go" id="go">提交回执</button>' +
+      '<div class="done" id="done">' + (r ? '您已回执：' + (r.status === 'yes' ? '出席' : '不出席') : '') + '</div>';
+
+    let status = r ? r.status : null;
+    $('bYes').addEventListener('click', () => { status = 'yes'; $('bYes').classList.add('on'); $('bNo').classList.remove('on'); });
+    $('bNo').addEventListener('click', () => { status = 'no'; $('bNo').classList.add('on'); $('bYes').classList.remove('on'); });
+    $('go').addEventListener('click', async () => {
+      if (!status) { $('done').textContent = '请先选择出席或不出席'; $('done').style.color = '#c0392b'; return; }
+      const res = await fetch('/api/events/' + E + '/rsvp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guestId: G, status, extra: +$('extra').value || 0, note: $('note').value }),
+      });
+      if (res.ok) {
+        $('done').style.color = '#15803d';
+        $('done').textContent = '✓ 回执成功！' + (status === 'yes' ? '我们届时恭候您的光临。' : '感谢告知，期待下次相聚。');
+      } else {
+        $('done').style.color = '#c0392b';
+        $('done').textContent = '提交失败，请稍后再试';
+      }
+    });
+  }
+
+  function renderList() {
+    const guests = (event.state && event.state.guests || []).filter(g => g.attending !== false);
+    const yes = guests.filter(g => event.rsvps[g.id] && event.rsvps[g.id].status === 'yes').length;
+    const no = guests.filter(g => event.rsvps[g.id] && event.rsvps[g.id].status === 'no').length;
+    $('content').innerHTML =
+      '<div class="sub">已确认 ' + yes + ' · 已婉拒 ' + no + ' · 共邀请 ' + guests.length + ' 人</div>' +
+      '<div class="list">' + guests.map(g => {
+        const r = event.rsvps[g.id];
+        return '<div class="li"><span>' + g.name + '</span>' + fmtStatus(r) + '</div>';
+      }).join('') + '</div>' +
+      '<button class="go" style="margin-top:14px" onclick="location.reload()">刷新</button>';
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>排座宝 · 婚宴排座 P0 原型</title>
+  <link rel="stylesheet" href="css/style.css?v=20261107c">
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand">
+      <span class="logo">桌</span>
+      <span class="brand-name">排座宝</span>
+      <span class="ver">P1 原型</span>
+    </div>
+    <input id="eventName" class="event-name" placeholder="活动名称" />
+    <select id="scenarioSel" class="scenario" title="场景（决定礼俗规则）">
+      <option value="wedding">🏮 婚宴</option>
+      <option value="banquet">🏢 年会</option>
+    </select>
+    <div class="spacer"></div>
+    <button id="btnNlp" class="btn">💬 建约束</button>
+    <button id="btnSolve" class="btn primary">✨ 智能排座</button>
+    <button id="btnDay" class="btn">🏃 当天模式</button>
+    <button id="btnRoute" class="btn">🍶 敬酒动线</button>
+    <button id="btnExport" class="btn">🖼️ 导出长图</button>
+    <button id="btnCards" class="btn">🃏 席位卡</button>
+    <button id="btnShare" class="btn">🔗 分享/RSVP</button>
+    <button id="btnEvents" class="btn">🗂 活动</button>
+    <button id="btnUnlock" class="btn gold">🔓 解锁</button>
+    <button id="btnDemo" class="btn ghost">婚宴示例</button>
+    <button id="btnDemoBq" class="btn ghost">年会示例</button>
+    <button id="btnClear" class="btn ghost danger">清空</button>
+  </header>
+
+  <div id="statsBar" class="stats">
+    <span id="statsText"></span>
+    <span id="engineChip" class="mode-chip" style="display:none"></span>
+    <span id="modeChip" class="mode-chip" style="display:none"></span>
+  </div>
+
+  <div id="dayBar" class="daybar" style="display:none">
+    <b>🏃 当天模式</b>
+    <input id="dayName" placeholder="临时到场的宾客姓名" />
+    <button id="btnDayAdd" class="btn primary">加到空位最多的桌</button>
+    <button id="btnDayFix" class="btn">⚖️ 最小扰动整理</button>
+    <span class="day-hint">双击座位撤人；拖拽即时生效；整理只补空缺/超员，不动已座宾客</span>
+  </div>
+
+  <main class="layout">
+    <aside class="left">
+      <div class="ltabs">
+        <button id="ltab-guests" class="ltab cur">👥 宾客</button>
+        <button id="ltab-layout" class="ltab">🪑 布局</button>
+      </div>
+
+      <div id="lpanel-guests" class="lpanel">
+        <div class="gtools">
+          <input id="guestFilter" class="filter" placeholder="搜索宾客…" />
+          <button id="btnImport" class="btn" title="粘贴接龙/名单批量导入">📋 导入</button>
+          <button id="btnAddGuest" class="btn" title="手动添加一位宾客">＋ 添加</button>
+        </div>
+        <div class="fchips" id="sideChips">
+          <button class="fchip cur" data-side="">全部</button>
+          <button class="fchip" data-side="groom">新郎方</button>
+          <button class="fchip" data-side="bride">新娘方</button>
+          <button class="fchip" data-side="none">未标注</button>
+        </div>
+        <div id="guestList" class="guest-list"></div>
+      </div>
+
+      <div id="lpanel-layout" class="lpanel" style="display:none">
+        <p class="hint" style="padding:10px 12px 4px">把元素<b>拖到画布上</b>摆放（松手即放置；干涉处放不下）。放置后点击画布中的桌/舞台即可就地弹窗设置。</p>
+        <div id="paletteList" class="palette">
+          <div class="pal-row" data-kind="table">
+            <span class="pal-icon">🪑</span>
+            <span class="pal-txt"><b>圆桌</b><i>宴席桌 · 默认 10 人，画布 ⚙ 可改</i></span>
+          </div>
+          <div class="pal-row" data-kind="stage">
+            <span class="pal-icon">🎭</span>
+            <span class="pal-txt"><b>舞台</b><i>矩形，点击可改形状</i></span>
+          </div>
+          <div class="pal-row" data-kind="wall">
+            <span class="pal-icon">🧱</span>
+            <span class="pal-txt"><b>墙面</b><i>隔断 / 立柱，可拉伸大小</i></span>
+          </div>
+          <div class="pal-row" data-kind="wc">
+            <span class="pal-icon">🚻</span>
+            <span class="pal-txt"><b>卫生间</b><i>场地设施</i></span>
+          </div>
+          <div class="pal-row" data-kind="sign">
+            <span class="pal-icon">📝</span>
+            <span class="pal-txt"><b>签到台</b><i>通常放入口旁</i></span>
+          </div>
+          <div class="pal-row" data-kind="buffet">
+            <span class="pal-icon">🍽</span>
+            <span class="pal-txt"><b>餐台</b><i>酒水 / 茶歇</i></span>
+          </div>
+          <div class="pal-row" data-kind="rest">
+            <span class="pal-icon">🛋</span>
+            <span class="pal-txt"><b>休息区</b><i>化妆 / 候场</i></span>
+          </div>
+        </div>
+        <p class="hint" style="padding:10px 12px">入口在画布边缘直接拖动；桌/元素拖出边界，画布自动扩场。选中墙面后拖右下角手柄调大小。</p>
+      </div>
+    </aside>
+
+    <section class="center">
+      <div id="planTabs" class="plan-tabs"></div>
+      <div class="stage-wrap">
+        <canvas id="stageCanvas"></canvas>
+        <div class="canvas-hint hint-left">拖动宾客到座位 · 空白处拖拽平移 · 滚轮缩放 · 宾客拖出桌外 = 取消安排</div>
+        <div class="canvas-hint hint-right">上座 = 面对入口的第一位（金色★）· 入口/舞台可直接拖动</div>
+        <div class="zoom-ctrl">
+          <button id="zoomOut" title="缩小">−</button>
+          <span id="zoomLevel">100%</span>
+          <button id="zoomIn" title="放大">＋</button>
+          <button id="zoomFit" title="适应内容">⤢</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="right">
+      <div class="rtabs">
+        <button id="tab-constraint" class="rtab cur">关系约束</button>
+        <button id="tab-report" class="rtab">礼俗报告</button>
+      </div>
+      <div id="panelconstraint" class="rpanel">
+        <div class="c-form">
+          <div class="c-dim">
+            <button id="dimGuest" class="fchip cur" data-dim="guest">按宾客</button>
+            <button id="dimRole" class="fchip" data-dim="role">按身份</button>
+            <span class="c-dim-hint">身份级会作用于该身份的全部宾客</span>
+          </div>
+          <div class="c-line">
+            <select id="cA"></select>
+            <select id="cType">
+              <option value="mustTogether">必须同桌</option>
+              <option value="mustApart">不能同桌</option>
+              <option value="preferTogether">希望同桌</option>
+              <option value="preferApart">最好分开</option>
+            </select>
+            <select id="cB"></select>
+          </div>
+          <button id="btnAddC" class="btn wide">＋ 添加约束</button>
+          <div class="lsec-title" style="margin:12px 0 6px">常用约束（身份级 · 一键添加）</div>
+          <div id="tplList" class="elem-grid"></div>
+        </div>
+        <div id="constraintList"></div>
+      </div>
+      <div id="panelreport" class="rpanel" style="display:none">
+        <button id="btnRunCheck" class="btn wide" style="margin-bottom:10px">🔍 开始礼俗检查</button>
+        <div id="issueList"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- 桌位就地设置弹窗（画布中选中桌 / 齿轮 触发，定位在桌旁） -->
+  <div id="tablePop" class="canvas-pop" style="display:none">
+    <h4 id="teTitle">桌位设置</h4>
+    <div class="pop-grid">
+      <label>桌名<input id="teName" /></label>
+      <label>可坐人数<input id="teCap" type="number" min="4" max="20" /></label>
+      <label class="chk"><input id="teHead" type="checkbox" /> 设为主桌</label>
+    </div>
+    <p class="hint">改小容量后，超出的座位上宾客将回到「未安排」。</p>
+    <div class="dlg-actions" style="margin-top:8px">
+      <button id="teDelete" class="btn danger">删除此桌</button>
+      <span class="spacer"></span>
+      <button class="btn" data-pop-close>取消</button>
+      <button id="teSave" class="btn primary">确定</button>
+    </div>
+  </div>
+
+  <!-- 舞台就地设置弹窗（点击舞台触发，屏幕居中） -->
+  <div id="stagePop" class="canvas-pop" style="display:none">
+    <h4>舞台设置</h4>
+    <div class="pop-grid">
+      <label>形状
+        <select id="spShape">
+          <option value="rect">矩形</option>
+          <option value="tshape">T 形</option>
+          <option value="round">圆形</option>
+        </select>
+      </label>
+      <div class="pop-row3">
+        <label>宽度<input id="spW" type="number" min="120" max="2000" step="10" /></label>
+        <label>高度<input id="spH" type="number" min="40" max="1200" step="10" /></label>
+        <label>整体 %<input id="spScale" type="number" min="20" max="400" step="5" /></label>
+      </div>
+      <p class="hint">改宽高即调整形状比例；改整体 % 等比缩放。也可拖画布中右下角红手柄。</p>
+    </div>
+    <div class="dlg-actions" style="margin-top:8px">
+      <button id="spDelete" class="btn danger">删除舞台</button>
+      <span class="spacer"></span>
+      <button class="btn" data-pop-close>关闭</button>
+    </div>
+  </div>
+
+  <!-- 场地元素就地设置弹窗（点击卫生间/签到台/餐台/休息区/墙面触发） -->
+  <div id="itemPop" class="canvas-pop" style="display:none">
+    <h4 id="ipTitle">元素设置</h4>
+    <div class="pop-grid">
+      <div class="pop-row3">
+        <label>宽度<input id="ipW" type="number" min="60" max="1600" step="10" /></label>
+        <label>高度<input id="ipH" type="number" min="24" max="800" step="10" /></label>
+        <label>整体 %<input id="ipScale" type="number" min="20" max="400" step="5" /></label>
+      </div>
+      <p class="hint">也可在画布中拖右下角红手柄调整大小。</p>
+    </div>
+    <div class="dlg-actions" style="margin-top:8px">
+      <button id="ipDelete" class="btn danger">删除元素</button>
+      <span class="spacer"></span>
+      <button class="btn" data-pop-close>关闭</button>
+    </div>
+  </div>
+
+  <!-- ====== 右侧抽屉（所有工具栏功能在此配置） ====== -->
+  <div id="drawerMask" class="drawer-mask"></div>
+  <aside id="drawer" class="drawer">
+    <header class="drawer-head">
+      <h3 id="drawerTitle">标题</h3>
+      <button id="drawerClose" class="drawer-x" title="关闭">✕</button>
+    </header>
+    <div class="drawer-body" id="drawerBody"></div>
+  </aside>
+
+  <!-- ====== 抽屉内容模板 ====== -->
+  <template id="tpl-import">
+    <p class="hint">支持微信接龙、编号列表、顿号分隔；自动识别 +1 随行、括号备注、称谓角色（舅父/总/爸爸…）。<br>
+      示例：<code>1. 林大山（新娘大舅）</code>、<code>王建军 +1</code>、<code>张丽华、钱志强</code></p>
+    <textarea id="importText" rows="10" placeholder="1. 张三&#10;2. 李四 +1&#10;王总（公司总经理）"></textarea>
+    <pre id="importPreview" class="preview">粘贴后自动解析…</pre>
+    <div class="dlg-actions">
+      <button class="btn" data-drawer-close>取消</button>
+      <button id="btnDoImport" class="btn primary">导入</button>
+    </div>
+  </template>
+
+  <template id="tpl-guest">
+    <div class="f-grid">
+      <label>姓名<input id="gName" /></label>
+      <label>宾客方别
+        <select id="gSide">
+          <option value="">未标注</option>
+          <option value="groom">新郎方</option>
+          <option value="bride">新娘方</option>
+        </select>
+      </label>
+      <label>角色
+        <select id="gRole"><option value="">（无）</option></select>
+      </label>
+      <label>分组<input id="gGroup" placeholder="如：二姨一家 / 大学同学" /></label>
+      <label>饮食禁忌<input id="gDietary" placeholder="如：素食 / 不吃辣" /></label>
+      <label>备注<input id="gNote" /></label>
+      <label class="chk"><input id="gAttending" type="checkbox" /> 确认出席</label>
+    </div>
+    <div class="dlg-actions">
+      <button id="btnDeleteGuest" class="btn danger">删除</button>
+      <span class="spacer"></span>
+      <button class="btn" data-drawer-close>取消</button>
+      <button id="btnSaveGuest" class="btn primary">保存</button>
+    </div>
+  </template>
+
+  <template id="tpl-pay">
+    <div class="price"><span class="cur">¥</span>9.9 <span class="tag">早鸟价 · 单场活动</span></div>
+    <div class="qr">
+      <div class="qr-grid"></div>
+      <p>微信扫码支付（原型内为<b>模拟</b>，不产生真实扣款）</p>
+    </div>
+    <ul class="feat">
+      <li>✨ 智能排座（约束规则匹配 + 3 套方案对比）</li>
+      <li>🏮 中式礼俗检查报告</li>
+      <li>🖼️ 导出去水印高清长图</li>
+    </ul>
+    <div class="dlg-actions">
+      <button class="btn" data-drawer-close>再想想</button>
+      <button id="btnMockPay" class="btn primary">模拟支付成功</button>
+    </div>
+  </template>
+
+  <template id="tpl-nlp">
+    <p class="hint">用人话写约束，每句一条。例如：「二姨和舅舅不能同桌」「王总和李总不对付」「张伟爸来不了」「二姨一家坐一桌」。</p>
+    <textarea id="nlpText" rows="5" placeholder="二姨和舅舅不能同桌。&#10;王总和李总不对付。&#10;袁明希望和陈斌一桌。"></textarea>
+    <div class="dlg-actions">
+      <button id="btnNlpParse" class="btn">解析</button>
+      <span class="spacer"></span>
+      <button id="btnNlpApply" class="btn primary">全部添加</button>
+    </div>
+    <div id="nlpResult"></div>
+  </template>
+
+  <template id="tpl-route">
+    <p class="hint">按离主桌由近到远排序。每桌列出宾客与称呼建议，可直接复制发到家人群。</p>
+    <pre id="routeText" class="preview" style="max-height:52vh"></pre>
+    <div class="dlg-actions">
+      <button id="btnRouteCopy" class="btn">📋 复制文本</button>
+    </div>
+  </template>
+
+  <template id="tpl-share">
+    <p class="hint">上传到本地分享服务（serve.py）后生成三类链接：家人协作编辑、亲友只读查看、宾客回执。RSVP 回执可一键同步回名单。</p>
+    <div id="shareBody">
+      <button id="btnShareUpload" class="btn primary wide">📤 上传活动并生成链接</button>
+    </div>
+    <div class="dlg-actions">
+      <button id="btnSyncRsvp" class="btn" style="display:none">🔄 同步 RSVP 回执</button>
+    </div>
+  </template>
+
+  <template id="tpl-events">
+    <p class="hint">多个活动各自独立保存（本地）。当前活动改动实时生效，另存副本后才进列表。</p>
+    <div id="eventsBody"></div>
+    <div class="dlg-actions">
+      <button id="btnEventSaveCopy" class="btn primary">💾 当前活动另存副本</button>
+    </div>
+  </template>
+
+  <div id="solving" class="solving"><div class="spin"></div>正在按约束规则计算座位…</div>
+  <div id="toast" class="toast"></div>
+
+  <script src="js/data.js?v=20261107c"></script>
+  <script src="js/parser.js?v=20261107c"></script>
+  <script src="js/nlp.js?v=20261107c"></script>
+  <script src="js/rules.js?v=20261107c"></script>
+  <script src="js/collision.js?v=20261107c"></script>
+  <script src="js/solver.js?v=20261107c"></script>
+  <script src="js/etiquette.js?v=20261107c"></script>
+  <script src="js/route.js?v=20261107c"></script>
+  <script src="js/stage.js?v=20261107c"></script>
+  <script src="js/exporter.js?v=20261107c"></script>
+  <script src="js/app.js?v=20261107c"></script>
+</body>
+</html>
